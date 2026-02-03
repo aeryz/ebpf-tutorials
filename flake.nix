@@ -13,12 +13,26 @@
       (system: 
         let
           pkgs = import nixpkgs { inherit system; };
+          eunomia-pkgs = eunomia-bpf.packages.${system};
+          bpftool = pkgs.runCommand "bpftool" {} ''
+            mkdir -p $out/bin
+            cp ${eunomia-pkgs.bpftool}/src/bpftool $out/bin
+          '';
         in
     {
     devShells.default = pkgs.mkShell {
-      packages = [
-        eunomia-bpf.packages.x86_64-linux.ecli
-      ];
+      packages = with pkgs; [
+        clang
+      ] ++ [
+        bpftool
+      ] ++ (with eunomia-bpf.packages.${system}; [
+        ecc
+        ecli
+      ]);
+
+      shellHook = ''
+        export NIX_CFLAGS_COMPILE="-fno-stack-protector"
+      '';
     };
 
   });
