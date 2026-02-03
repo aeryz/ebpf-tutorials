@@ -1,3 +1,4 @@
 /result
-*/*.skel.json
-*/package.json
+**/*.skel.json
+**/*.bpf.o
+**/package.json
