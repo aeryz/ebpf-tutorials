@@ -20,7 +20,7 @@ int tracepoint__syscalls__sys_enter_openat(struct trace_event_raw_sys_enter* ctx
     u32 pid = id >> 32;
 
     if (pid_target && pid_target != pid)
-        return false;
+        return 0;
 
     // Use bpf_printk to print the process information
     bpf_printk("Process ID: %d enter sys openat\n", pid);
