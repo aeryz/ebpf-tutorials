@@ -5,6 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     eunomia-bpf.url = "github:eunomia-bpf/eunomia-bpf";
+    eunomia-bpf.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, flake-utils, eunomia-bpf }:
@@ -26,6 +27,14 @@
             hash = "sha256-CVEmKkzdFNLKCbcbeSIoM5QjYVLQglpz6gy7+ZFPgCY=";
           };
 
+          eccNoHardening = pkgs.writeShellScriptBin "ecc" ''
+            export NIX_HARDENING_ENABLE=
+            export NIX_CFLAGS_COMPILE=
+            export NIX_CFLAGS_COMPILE_FOR_TARGET=
+            export NIX_LDFLAGS=
+            exec ${eunomia-pkgs.ecc}/bin/ecc-rs "$@"
+          '';
+
         in
     {
     devShells.default = pkgs.mkShell {
@@ -33,8 +42,8 @@
         clang
       ] ++ [
         bpftool
+        eccNoHardening
       ] ++ (with eunomia-bpf.packages.${system}; [
-        ecc
         ecli
       ]);
 
