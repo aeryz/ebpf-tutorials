@@ -1,0 +1,17 @@
+[package]
+name = "execsnoop-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+execsnoop-common = { path = "../execsnoop-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "execsnoop"
+path = "src/main.rs"
