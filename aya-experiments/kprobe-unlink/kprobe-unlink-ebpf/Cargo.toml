@@ -1,0 +1,17 @@
+[package]
+name = "kprobe-unlink-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+kprobe-unlink-common = { path = "../kprobe-unlink-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "kprobe-unlink"
+path = "src/main.rs"

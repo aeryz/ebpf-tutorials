@@ -50,6 +50,7 @@
       shellHook = ''
         export C_INCLUDE_PATH=$C_INCLUDE_PATH:${vmlinux-headers}:${pkgs.libbpf}/include
         export NIX_CFLAGS_COMPILE="-fno-stack-protector"
+        export LIBCLANG_PATH=${pkgs.llvmPackages.libclang.lib}/lib
       '';
     };
 
