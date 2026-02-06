@@ -1,0 +1,17 @@
+[package]
+name = "sigsnoop-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+sigsnoop-common = { path = "../sigsnoop-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "sigsnoop"
+path = "src/main.rs"
