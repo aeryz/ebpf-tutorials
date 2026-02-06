@@ -1,41 +1,30 @@
 #![no_std]
 #![no_main]
 
-mod vmlinux;
-
-use core::slice;
-
 use aya_ebpf::{
     EbpfContext,
-    bindings::task_struct,
     cty::c_long,
     helpers::{bpf_probe_read, bpf_probe_read_kernel_str_bytes},
-    macros::{kprobe, kretprobe},
-    programs::{ProbeContext, RetProbeContext},
+    macros::{fentry, fexit},
+    programs::{FEntryContext, FExitContext},
 };
 use aya_log_ebpf::info;
 
 use crate::vmlinux::filename;
 
-#[kprobe]
-pub fn kprobe_unlink(ctx: ProbeContext) -> u32 {
-    match try_kprobe_unlink(ctx) {
+mod vmlinux;
+
+#[fentry(function = "do_unlinkat")]
+pub fn fentry_unlink(ctx: FEntryContext) -> u32 {
+    match try_fentry_unlink(ctx) {
         Ok(ret) => ret,
         Err(ret) => ret,
     }
 }
 
-#[kretprobe]
-pub fn kretprobe_unlink(ctx: RetProbeContext) -> u32 {
-    match try_kretprobe_unlink(ctx) {
-        Ok(ret) => ret,
-        Err(ret) => ret,
-    }
-}
-
-fn try_kprobe_unlink(ctx: ProbeContext) -> Result<u32, u32> {
+fn try_fentry_unlink(ctx: FEntryContext) -> Result<u32, u32> {
     let pid = ctx.pid();
-    let f: *const filename = ctx.arg(1).ok_or(1u32)?;
+    let f: *const filename = ctx.arg(1);
     let mut dest = [0; 192];
     let fname = unsafe {
         let f = bpf_probe_read(core::ptr::addr_of!((*f).name)).map_err(|x| x as u32)?;
@@ -44,18 +33,22 @@ fn try_kprobe_unlink(ctx: ProbeContext) -> Result<u32, u32> {
                 .map_err(|x| x as u32)?,
         )
     };
-    info!(&ctx, "KPROBE ENTRY: pid = {}, filename = {}", pid, fname);
+    info!(&ctx, "fentry: pid = {}, filename = {}", pid, fname);
 
     Ok(0)
 }
 
-fn try_kretprobe_unlink(ctx: RetProbeContext) -> Result<u32, u32> {
-    info!(
-        &ctx,
-        "KPROBE EXIT: pid = {}, ret = {}",
-        ctx.pid(),
-        ctx.ret::<c_long>()
-    );
+#[fexit(function = "do_unlinkat")]
+pub fn fexit_unlink(ctx: FExitContext) -> u32 {
+    match try_fexit_unlink(ctx) {
+        Ok(ret) => ret,
+        Err(ret) => ret,
+    }
+}
+
+fn try_fexit_unlink(ctx: FExitContext) -> Result<u32, u32> {
+    let ret = ctx.arg::<c_long>(2);
+    info!(&ctx, "fexit: pid = {}, ret = {}", ctx.pid(), ret);
     Ok(0)
 }
 

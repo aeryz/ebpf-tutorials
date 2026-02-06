@@ -9,7 +9,7 @@ use tokio::signal;
 struct Args {
     /// The pid to be traced
     #[arg(short = 'p')]
-    pid_filter: u32,
+    pid_target: u32,
 }
 
 #[tokio::main]
@@ -34,10 +34,10 @@ async fn main() -> anyhow::Result<()> {
     // like to specify the eBPF program at runtime rather than at compile-time, you can
     // reach for `Bpf::load_file` instead.
     let mut ebpf = aya::EbpfLoader::new()
-        .override_global("PID_FILTER", &args.pid_filter, true)
+        .override_global("PID_TARGET", &args.pid_target, true)
         .load(aya::include_bytes_aligned!(concat!(
             env!("OUT_DIR"),
-            "/helloworld"
+            "/opensnoop"
         )))?;
     match aya_log::EbpfLogger::init(&mut ebpf) {
         Err(e) => {
@@ -56,10 +56,9 @@ async fn main() -> anyhow::Result<()> {
             });
         }
     }
-
-    let program: &mut TracePoint = ebpf.program_mut("helloworld").unwrap().try_into()?;
+    let program: &mut TracePoint = ebpf.program_mut("opensnoop").unwrap().try_into()?;
     program.load()?;
-    program.attach("syscalls", "sys_enter_write")?;
+    program.attach("syscalls", "sys_enter_openat")?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");

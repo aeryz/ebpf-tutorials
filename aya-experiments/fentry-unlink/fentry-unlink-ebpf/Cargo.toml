@@ -1,0 +1,17 @@
+[package]
+name = "fentry-unlink-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+fentry-unlink-common = { path = "../fentry-unlink-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "fentry-unlink"
+path = "src/main.rs"

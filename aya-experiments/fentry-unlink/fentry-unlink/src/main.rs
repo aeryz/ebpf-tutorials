@@ -1,22 +1,15 @@
-use aya::programs::TracePoint;
-use clap::Parser;
+use anyhow::Context as _;
+use aya::{
+    Btf,
+    programs::{FEntry, FExit},
+};
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// The pid to be traced
-    #[arg(short = 'p')]
-    pid_filter: u32,
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
-
-    let args = Args::parse();
 
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
     // new memcg based accounting, see https://lwn.net/Articles/837122/
@@ -33,12 +26,10 @@ async fn main() -> anyhow::Result<()> {
     // runtime. This approach is recommended for most real-world use cases. If you would
     // like to specify the eBPF program at runtime rather than at compile-time, you can
     // reach for `Bpf::load_file` instead.
-    let mut ebpf = aya::EbpfLoader::new()
-        .override_global("PID_FILTER", &args.pid_filter, true)
-        .load(aya::include_bytes_aligned!(concat!(
-            env!("OUT_DIR"),
-            "/helloworld"
-        )))?;
+    let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
+        env!("OUT_DIR"),
+        "/fentry-unlink"
+    )))?;
     match aya_log::EbpfLogger::init(&mut ebpf) {
         Err(e) => {
             // This can happen if you remove all log statements from your eBPF program.
@@ -56,10 +47,13 @@ async fn main() -> anyhow::Result<()> {
             });
         }
     }
-
-    let program: &mut TracePoint = ebpf.program_mut("helloworld").unwrap().try_into()?;
-    program.load()?;
-    program.attach("syscalls", "sys_enter_write")?;
+    let btf = Btf::from_sys_fs().context("BTF from sysfs")?;
+    let program: &mut FEntry = ebpf.program_mut("fentry_unlink").unwrap().try_into()?;
+    program.load("do_unlinkat", &btf)?;
+    program.attach()?;
+    let program_exit: &mut FExit = ebpf.program_mut("fexit_unlink").unwrap().try_into()?;
+    program_exit.load("do_unlinkat", &btf)?;
+    program_exit.attach()?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");

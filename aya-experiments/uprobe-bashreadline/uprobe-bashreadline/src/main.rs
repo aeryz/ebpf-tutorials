@@ -1,22 +1,23 @@
-use aya::programs::TracePoint;
+use aya::programs::UProbe;
 use clap::Parser;
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
 
-#[derive(Parser, Debug)]
+#[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
-struct Args {
-    /// The pid to be traced
+struct Opt {
     #[arg(short = 'p')]
-    pid_filter: u32,
+    pid: Option<u32>,
+    #[arg(short = 'b', default_value = "/bin/bash")]
+    bash_path: String,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    let opt = Opt::parse();
 
-    let args = Args::parse();
+    env_logger::init();
 
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
     // new memcg based accounting, see https://lwn.net/Articles/837122/
@@ -33,12 +34,10 @@ async fn main() -> anyhow::Result<()> {
     // runtime. This approach is recommended for most real-world use cases. If you would
     // like to specify the eBPF program at runtime rather than at compile-time, you can
     // reach for `Bpf::load_file` instead.
-    let mut ebpf = aya::EbpfLoader::new()
-        .override_global("PID_FILTER", &args.pid_filter, true)
-        .load(aya::include_bytes_aligned!(concat!(
-            env!("OUT_DIR"),
-            "/helloworld"
-        )))?;
+    let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
+        env!("OUT_DIR"),
+        "/uprobe-bashreadline"
+    )))?;
     match aya_log::EbpfLogger::init(&mut ebpf) {
         Err(e) => {
             // This can happen if you remove all log statements from your eBPF program.
@@ -56,10 +55,12 @@ async fn main() -> anyhow::Result<()> {
             });
         }
     }
-
-    let program: &mut TracePoint = ebpf.program_mut("helloworld").unwrap().try_into()?;
+    let program: &mut UProbe = ebpf
+        .program_mut("uprobe_bashreadline")
+        .unwrap()
+        .try_into()?;
     program.load()?;
-    program.attach("syscalls", "sys_enter_write")?;
+    program.attach("get_string_value", opt.bash_path, opt.pid)?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
