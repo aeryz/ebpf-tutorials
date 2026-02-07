@@ -1,0 +1,17 @@
+[package]
+name = "exitsnoop-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+exitsnoop-common = { path = "../exitsnoop-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "exitsnoop"
+path = "src/main.rs"
